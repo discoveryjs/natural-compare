@@ -5,7 +5,7 @@ function naturalSorting(array) {
     return array.slice().sort(naturalCompare);
 }
 
-describe('natural sorting', () => {
+describe('naturalCompare', () => {
     it('sign', () => {
         const input = [
             '1',
@@ -317,6 +317,30 @@ describe('natural sorting', () => {
             ' 2   1',
             ' 2  01',
             ' 2 0001'
+        ]);
+    });
+
+    it('should support exponent part', () => {
+        const input = [
+            '-1',
+            '-1.01',
+            '-1e2',
+            '-1e-2',
+            '1',
+            '1.01',
+            '1e2',
+            '1e-2'
+        ];
+
+        assert.deepEqual(naturalSorting(input), [
+            '-1e2',
+            '-1.01',
+            '-1',
+            '-1e-2',
+            '1e-2',
+            '1',
+            '1.01',
+            '1e2'
         ]);
     });
 

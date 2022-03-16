@@ -193,6 +193,7 @@ function compare(a, b, analytical) {
         const typeB = partB & 7;
         const lenB = partB >> 3;
 
+        /* c8 ignore next 6 */
         if (debug) {
             console.log({
                 typeA: DEBUG_TYPE_NAME[typeA], lenA, substrA: a.substr(offsetA, lenA),
@@ -312,6 +313,7 @@ export function naturalCompare(a, b) {
     const typeB = typeof b;
     let ret = 0;
 
+    /* c8 ignore next 3 */
     if (debug) {
         console.log('Compare', a, b);
     }
@@ -320,6 +322,7 @@ export function naturalCompare(a, b) {
         ret = Math.sign(compare(String(a), String(b), false));
     }
 
+    /* c8 ignore next 3 */
     if (debug) {
         console.log('Result:', ret);
     }
@@ -332,6 +335,7 @@ export function naturalAnalyticalCompare(a, b) {
     const typeB = typeof b;
     let ret = 0;
 
+    /* c8 ignore next 3 */
     if (debug) {
         console.log('Compare', a, b);
     }
@@ -340,6 +344,7 @@ export function naturalAnalyticalCompare(a, b) {
         ret = Math.sign(compare(String(a), String(b), true));
     }
 
+    /* c8 ignore next 3 */
     if (debug) {
         console.log('Result:', ret);
     }
