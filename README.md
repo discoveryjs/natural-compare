@@ -1,6 +1,8 @@
 [![NPM version](https://img.shields.io/npm/v/@discoveryjs/natural-compare.svg)](https://www.npmjs.com/package/@discoveryjs/natural-compare)
 [![Build Status](https://github.com/discoveryjs/natural-compare/actions/workflows/build.yml/badge.svg)](https://github.com/discoveryjs/natural-compare/actions/workflows/build.yml)
 [![Coverage Status](https://coveralls.io/repos/github/discoveryjs/natural-compare/badge.svg?branch=main)](https://coveralls.io/github/discoveryjs/natural-compare?branch=main)
+[![Minified size](https://badgen.net/bundlephobia/min/@discoveryjs/natural-compare)](https://bundlephobia.com/result?p=@discoveryjs/natural-compare)
+[![Minified + gzip size](https://badgen.net/bundlephobia/minzip/@discoveryjs/natural-compare)](https://bundlephobia.com/result?p=@discoveryjs/natural-compare)
 
 # @discoveryjs/natural-compare
 
