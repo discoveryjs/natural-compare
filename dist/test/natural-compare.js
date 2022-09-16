@@ -1,10 +1,8 @@
 /* global naturalCompare */
-const assert = require('assert');
-const fs = require('fs');
+import assert from 'assert';
+import { naturalCompare, naturalAnalyticalCompare } from '../natural-compare.esm.js';
 
-describe('natural-compare.js', () => {
-    eval(fs.readFileSync('dist/natural-compare.js', 'utf8'));
-
+describe('natural-compare.esm.js', () => {
     it('naturalCompare', () => {
         const actual = naturalCompare(5, '123');
 

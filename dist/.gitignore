@@ -1,6 +1,5 @@
-*.js
-*.cjs
-*.map
-!test/*.cjs
+*.*
+!test/natural-compare.cjs
+!test/natural-compare.js
 !.gitignore
 !.npmignore

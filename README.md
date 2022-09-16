@@ -37,12 +37,29 @@ import { naturalCompare } from '@discoveryjs/natural-compare';
     'file2.js',
     'file12.js',
     'file9.js'
-].sort(naturalCompare);
+].sort();
 // file1.js
 // file10.js
 // file12.js
 // file2.js
 // file9.js
+```
+
+In browser:
+
+```html
+    <!-- ESM -->
+    <script type="module">
+        import { natualCompare } from "@discoveryjs/natural-compare/dist/natural-compare.esm.js";
+
+        array.sort(naturalCompare);
+    </script>
+
+    <!-- Old way -->
+    <script src="@discoveryjs/natural-compare/dist/natural-compare.js"></script>
+    <script>
+        array.sort(naturalCompare);
+    </script>
 ```
 
 ## License

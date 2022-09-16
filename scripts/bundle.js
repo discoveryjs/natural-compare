@@ -15,6 +15,16 @@ async function build() {
         minify: true,
         sourcemap: true
     });
+
+    await esbuild.build({
+        entryPoints: ['src/index.js'],
+        outfile: 'dist/natural-compare.esm.js',
+        format: 'esm',
+        bundle: true,
+        logLevel: 'info',
+        minify: true,
+        sourcemap: true
+    });
 }
 
 build();
