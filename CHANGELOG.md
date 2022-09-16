@@ -1,4 +1,4 @@
-## next
+## 1.1.0 (2022-09-16)
 
 - Refactored to improve a bundle minification (for bundling with `esbuild` 2354 -> 1890 bytes)
 - Added `dist/natural-compare.esm.js`

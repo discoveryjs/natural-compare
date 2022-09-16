@@ -1,6 +1,6 @@
 {
     "name": "@discoveryjs/natural-compare",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Compare strings in a natural order",
     "author": "Roman Dvornov <rdvornov@gmail.com> (https://github.com/lahmatiy)",
     "repository": "discoveryjs/natural-compare",
