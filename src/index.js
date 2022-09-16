@@ -1,13 +1,22 @@
-const TYPE_EOF = 0;
-const TYPE_WS = 1;
-const TYPE_DELIM = 2;
-const TYPE_NUM = 3;
-const TYPE_WORD = 4;
-const DEBUG_TYPE_NAME = ['eof', 'ws', 'delim', 'number', 'word'];
-const debug = false;
+const TYPE_EOF   = 0b0000;
+const TYPE_WS    = 0b0001;
+const TYPE_DELIM = 0b0010;
+const TYPE_NUM   = 0b0100;
+const TYPE_WORD  = 0b1000;
+const TYPE_WS_OR_DELIM = TYPE_WS | TYPE_DELIM;
+const TYPE_NUM_OR_WORD = TYPE_NUM | TYPE_WORD;
+const DEBUG = false;
+const DEBUG_TYPE_NAME = {
+    [TYPE_EOF]: 'eof',
+    [TYPE_WS]: 'ws',
+    [TYPE_DELIM]: 'delim',
+    [TYPE_NUM]: 'number',
+    [TYPE_WORD]: 'word'
+};
 
+const isSortableValue = value => typeof value === 'number' || typeof value === 'string';
 const safeCharCodeAt = (source, offset) => offset < source.length ? source.charCodeAt(offset) : 0;
-const isSign = (code) => code === 0x002B || code === 0x002D;
+const isSign = (code) => code === 0x002B || code === 0x002D; // + or -
 const isDigit = (code) => code >= 0x0030 && code <= 0x0039;
 const isWS = (code) => (
     code === 0x0009 ||  // \t
@@ -20,13 +29,18 @@ const isDelim = (code) => (
     (code > 0x0020 && code < 0x0100) &&  // ascii char
     (code < 0x0041 || code > 0x005A) &&  // not A..Z
     (code < 0x0061 || code > 0x007A) &&  // not a..z
-    (code < 0x0030 || code > 0x0039) &&  // not 0..9
-    code !== 0x002B &&                   // not +
-    code !== 0x002D                      // not -
+    !isDigit(code) &&                    // not 0..9
+    !isSign(code)                        // not + or -
 ) || code === 0x2116;  /* № */
+const isWord = (code) => (
+    code &&
+    !isWS(code) &&
+    !isDelim(code) &&
+    !isDigit(code)
+);
 
 //  Check if three code points would start a number
-function isNumberStart(first, second, third) {
+const isNumberStart = (first, second, third) => {
     // Look at the first code point:
 
     // U+002B PLUS SIGN (+)
@@ -58,17 +72,17 @@ function isNumberStart(first, second, third) {
     // anything else
     // Return false.
     return 0;
-}
+};
 
-function findDecimalNumberEnd(source, offset) {
-    while (isDigit(safeCharCodeAt(source, offset))) {
-        offset++;
+const findEndOfType = (source, offset, isType) => {
+    while (isType(safeCharCodeAt(source, ++offset))) {
+        // do nothing
     }
 
     return offset;
-}
+};
 
-function consumeNumber(source, offset, preventFloat) {
+const consumeNumber = (source, offset, preventFloat) => {
     let code = safeCharCodeAt(source, offset);
 
     // If the next input code point is U+002B PLUS SIGN (+) or U+002D HYPHEN-MINUS (-),
@@ -79,7 +93,7 @@ function consumeNumber(source, offset, preventFloat) {
 
     // While the next input code point is a digit, consume it and append it to repr.
     if (isDigit(code)) {
-        offset = findDecimalNumberEnd(source, offset + 1);
+        offset = findEndOfType(source, offset, isDigit);
         code = safeCharCodeAt(source, offset);
     }
 
@@ -90,13 +104,12 @@ function consumeNumber(source, offset, preventFloat) {
         }
 
         // Consume them
-        let expectedEnd = offset + 2;
-
         // While the next input code point is a digit, consume it and append it to repr.
-        expectedEnd = findDecimalNumberEnd(source, expectedEnd);
+        const expectedEnd = findEndOfType(source, offset + 1, isDigit);
+        code = safeCharCodeAt(source, expectedEnd);
 
         // If next char is U+002E FULL STOP (.), then don't consume
-        if (safeCharCodeAt(source, expectedEnd) === 0x002E) {
+        if (code === 0x002E) {
             return offset;
         }
 
@@ -105,78 +118,54 @@ function consumeNumber(source, offset, preventFloat) {
 
     // If the next 2 or 3 input code points are U+0045 LATIN CAPITAL LETTER E (E)
     // or U+0065 LATIN SMALL LETTER E (e), ... , followed by a digit, then:
-    code = safeCharCodeAt(source, offset);
     if (code === 0x0045 /* e */ || code === 0x0065 /* E */) {
-        let sign = 0;
+        let sign = 1;
         code = safeCharCodeAt(source, offset + 1);
 
         // ... optionally followed by U+002D HYPHEN-MINUS (-) or U+002B PLUS SIGN (+) ...
         if (isSign(code)) {
-            sign = 1;
+            sign = 2;
             code = safeCharCodeAt(source, offset + 2);
         }
 
         // ... followed by a digit
         if (isDigit(code)) {
             // While the next input code point is a digit, consume it and append it to repr.
-            offset = findDecimalNumberEnd(source, offset + 1 + sign + 1);
+            offset = findEndOfType(source, offset + sign, isDigit);
         }
     }
 
     return offset;
-}
+};
 
-function getPart(source, offset, preventFloat, preventSign) {
+const getToken = (source, offset, preventFloat, preventSign) => {
     if (offset >= source.length) {
         return TYPE_EOF;
     }
 
-    let a = safeCharCodeAt(source, offset);
+    const code = safeCharCodeAt(source, offset);
 
     // Whitespace
-    if (isWS(a)) {
-        let end = offset + 1;
-
-        while (isWS(safeCharCodeAt(source, end))) {
-            end++;
-        }
-
-        return TYPE_WS | (end - offset << 3);
+    if (isWS(code)) {
+        return TYPE_WS | (findEndOfType(source, offset, isWS) - offset << 4);
     }
 
     // Delim sequence
     // console.log(source[offset], isDelim(a), a.toString(16), preventSign)
-    if (isDelim(a) || (preventSign && isSign(a))) {
-        let end = offset + 1;
-        let b = a;
-
-        do {
-            a = b;
-            b = safeCharCodeAt(source, end++);
-        } while (isDelim(b) || b === a);
-
-        return TYPE_DELIM | (end - offset - 1 << 3);
+    if (isDelim(code) || (preventSign && isSign(code))) {
+        return TYPE_DELIM | (findEndOfType(source, offset, isDelim) - offset << 4);
     }
 
     // Number
-    let b = safeCharCodeAt(source, offset + 1);
-    let c = safeCharCodeAt(source, offset + 2);
-    if (isNumberStart(a, b, c)) {
-        return TYPE_NUM | (consumeNumber(source, offset, preventFloat) - offset << 3);
+    if (isNumberStart(code, safeCharCodeAt(source, offset + 1), safeCharCodeAt(source, offset + 2))) {
+        return TYPE_NUM | (consumeNumber(source, offset, preventFloat) - offset << 4);
     }
 
     // Word
-    let end = offset;
-    do {
-        a = b;
-        b = c;
-        c = safeCharCodeAt(source, 3 + end++);
-    } while (end < source.length && !isWS(a) && !isDelim(a) && !isDigit(a));
+    return TYPE_WORD | (findEndOfType(source, offset, isWord) - offset << 4);
+};
 
-    return TYPE_WORD | (end - offset << 3);
-}
-
-function compare(a, b, analytical) {
+const compare = (a, b, analytical) => {
     let offsetA = 0;
     let offsetB = 0;
     let preventFloat = false;
@@ -185,59 +174,58 @@ function compare(a, b, analytical) {
     let postCmpResultType = 0;
     let firstPart = true;
 
-    do {
-        const partA = getPart(a, offsetA, preventFloat, preventSign);
-        const partB = getPart(b, offsetB, preventFloat, preventSign);
-        const typeA = partA & 7;
-        const lenA = partA >> 3;
-        const typeB = partB & 7;
-        const lenB = partB >> 3;
+    while (true) {
+        const partA = getToken(a, offsetA, preventFloat, preventSign);
+        const partB = getToken(b, offsetB, preventFloat, preventSign);
+        const typeA = partA & 15;
+        const lenA = partA >> 4;
+        const typeB = partB & 15;
+        const lenB = partB >> 4;
 
         /* c8 ignore next 6 */
-        if (debug) {
+        if (DEBUG) {
             console.log({
                 typeA: DEBUG_TYPE_NAME[typeA], lenA, substrA: a.substr(offsetA, lenA),
                 typeB: DEBUG_TYPE_NAME[typeB], lenB, substrB: b.substr(offsetB, lenB)
             });
         }
 
-        if (typeA !== typeB && firstPart) {
-            if ((typeA === TYPE_WS || typeA === TYPE_DELIM) && (typeB === TYPE_NUM || typeB === TYPE_WORD)) {
+        if (typeA !== typeB) {
+            if (firstPart && (typeA & TYPE_WS_OR_DELIM) && (typeB & TYPE_NUM_OR_WORD)) {
                 postCmpResult = 1;
                 postCmpResultType = typeA;
                 offsetA += lenA;
                 continue;
             }
 
-            if ((typeB === TYPE_WS || typeB === TYPE_DELIM) && (typeA === TYPE_NUM || typeA === TYPE_WORD)) {
+            if (firstPart && (typeB & TYPE_WS_OR_DELIM) && (typeA & TYPE_NUM_OR_WORD)) {
                 postCmpResult = -1;
                 postCmpResultType = typeB;
                 offsetB += lenB;
                 continue;
             }
+
+            return typeA - typeB;
         }
-
-        firstPart = false;
-
-        if (typeA !== typeB) {
-            return typeA < typeB ? -1 : 1;
-        }
-
-        preventFloat = false;
-        preventSign = false;
 
         // both parts are the same type, no matter which type to test
         if (typeA === TYPE_EOF) {
             return postCmpResult;
         }
 
+        // reset flags
+        firstPart = false;
+        preventFloat = false;
+        preventSign = false;
+
         // find difference in substr
         const minLength = lenA < lenB ? lenA : lenB;
         let substrDiff = lenA - lenB;
-        let substrDiffIdx = 0;
-        for (; substrDiffIdx < minLength; substrDiffIdx++) {
-            const cA = a[offsetA + substrDiffIdx];
-            const cB = b[offsetB + substrDiffIdx];
+        let cA = '';
+        let cB = '';
+        for (let i = 0; i < minLength; i++) {
+            cA = a[offsetA + i];
+            cB = b[offsetB + i];
 
             if (cA !== cB) {
                 substrDiff = cA < cB ? -1 : 1;
@@ -246,14 +234,16 @@ function compare(a, b, analytical) {
         }
 
         // both parts are the same type, no matter which type to test
-        if (typeA === TYPE_WS || typeA === TYPE_DELIM) {
-            if (substrDiff !== 0 && (postCmpResult === 0 || typeA > postCmpResultType)) {
-                postCmpResultType = typeA;
-                postCmpResult = substrDiff;
-            }
-
+        if (typeA & TYPE_WS_OR_DELIM) {
             preventFloat = a[offsetA + lenA - 1] === '.';
-        } else if (typeA === TYPE_NUM) {
+
+            if (substrDiff !== 0) {
+                if (typeA > postCmpResultType) {
+                    postCmpResultType = typeA;
+                    postCmpResult = substrDiff;
+                }
+            }
+        } else if (typeA & TYPE_NUM) {
             preventSign = true;
 
             if (substrDiff !== 0) {
@@ -263,7 +253,7 @@ function compare(a, b, analytical) {
                     return analytical ? -numDiff : numDiff;
                 }
 
-                if (postCmpResult === 0 || typeA > postCmpResultType) {
+                if (typeA > postCmpResultType) {
                     const afc = safeCharCodeAt(a, offsetA);
                     const bfc = safeCharCodeAt(b, offsetB);
                     const order = afc === 0x002D ? -1 : 1;
@@ -278,7 +268,9 @@ function compare(a, b, analytical) {
                         ? -1
                         : afc !== bfc && (afc === 0x002B /* + */ || bfc === 0x002D /* - */)
                             ? 1
-                            : (lenA !== lenB ? lenA < lenB : substrDiff < 0) ? -order : order;
+                            : (lenA - lenB || substrDiff) < 0 // lenA !== lenB ? lenA < lenB : substrDiff < 0
+                                ? -order
+                                : order;
 
                     if (analytical) {
                         postCmpResult = -postCmpResult;
@@ -287,67 +279,47 @@ function compare(a, b, analytical) {
             }
         } else { // typeA === TYPE_WORD
             if (substrDiff !== 0) {
-                if (substrDiffIdx < minLength) {
+                if (cA !== cB) {
                     // case insensitive checking
-                    let cnA = a[offsetA + substrDiffIdx].toLowerCase();
-                    let cnB = b[offsetB + substrDiffIdx].toLowerCase();
+                    const sA = a.substr(offsetA, lenA);
+                    const sB = b.substr(offsetB, lenB);
+                    const siA = sA.toLowerCase();
+                    const siB = sB.toLowerCase();
 
-                    if (cnA !== cnB) {
-                        return cnA < cnB ? -1 : 1;
+                    if (siA !== siB) {
+                        return siA < siB ? -1 : 1;
                     }
+
+                    return sA < sB ? -1 : 1;
                 }
 
                 return substrDiff;
             }
-
-            preventFloat = a[offsetA + lenA - 1] === '.';
         }
 
         offsetA += lenA;
         offsetB += lenB;
-    } while (true);
-}
+    }
+};
 
-export function naturalCompare(a, b) {
-    const typeA = typeof a;
-    const typeB = typeof b;
-    let ret = 0;
+const createCompareFn = analytical => (a, b) => {
+    /* c8 ignore next */
+    DEBUG && console.log('Compare', a, b);
 
-    /* c8 ignore next 3 */
-    if (debug) {
-        console.log('Compare', a, b);
+    if (isSortableValue(a) && isSortableValue(b)) {
+        const ret = Math.sign(compare(String(a), String(b), analytical));
+
+        /* c8 ignore next */
+        DEBUG && console.log('Result:', ret);
+
+        return ret;
     }
 
-    if ((typeA === 'number' || typeA === 'string') && (typeB === 'number' || typeB === 'string')) {
-        ret = Math.sign(compare(String(a), String(b), false));
-    }
+    /* c8 ignore next */
+    DEBUG && console.log('Result: (non-comparable)');
 
-    /* c8 ignore next 3 */
-    if (debug) {
-        console.log('Result:', ret);
-    }
+    return 0;
+};
 
-    return ret;
-}
-
-export function naturalAnalyticalCompare(a, b) {
-    const typeA = typeof a;
-    const typeB = typeof b;
-    let ret = 0;
-
-    /* c8 ignore next 3 */
-    if (debug) {
-        console.log('Compare', a, b);
-    }
-
-    if ((typeA === 'number' || typeA === 'string') && (typeB === 'number' || typeB === 'string')) {
-        ret = Math.sign(compare(String(a), String(b), true));
-    }
-
-    /* c8 ignore next 3 */
-    if (debug) {
-        console.log('Result:', ret);
-    }
-
-    return ret;
-}
+export const naturalCompare = createCompareFn(false);
+export const naturalAnalyticalCompare = createCompareFn(true);

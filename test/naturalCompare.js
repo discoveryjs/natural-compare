@@ -90,6 +90,44 @@ describe('naturalCompare', () => {
         ]);
     });
 
+    it('should sort a homogeneous array of strings in ascending direction', () => {
+        const input = [
+            'A',
+            'a',
+            'Aa',
+            'aA',
+            'AA',
+            'aa',
+            'az',
+            'ab',
+            'aAz',
+            'aAb',
+            'aAB',
+            'aaz',
+            'aab',
+            'aAz',
+            'aAa'
+        ];
+
+        assert.deepEqual(naturalSorting(input), [
+            'A',
+            'a',
+            'AA',
+            'Aa',
+            'aA',
+            'aa',
+            'aAa',
+            'aAB',
+            'aAb',
+            'aab',
+            'aAz',
+            'aAz',
+            'aaz',
+            'ab',
+            'az'
+        ]);
+    });
+
     it('should sort a heterogeneous array of numbers and strings in ascending direction', () => {
         const input = [
             'x',
@@ -184,8 +222,8 @@ describe('naturalCompare', () => {
         ];
 
         assert.deepEqual(naturalSorting(input), [
-            'aEioǜ_d',
             'aeiou_e',
+            'aEioǜ_d',
             'aęiou_b',
             'áeiou_a',
             'æiou_c'
@@ -542,6 +580,24 @@ describe('naturalCompare', () => {
                 'foo (3.03%)',
                 'foo (3.030%)',
                 'foo (3.1%)'
+            ]);
+        });
+    });
+
+    describe('number special chars', () => {
+        it('№', () => {
+            const input = [
+                '№1',
+                '№10',
+                '№21',
+                '№2'
+            ];
+
+            assert.deepEqual(naturalSorting(input), [
+                '№1',
+                '№2',
+                '№10',
+                '№21'
             ]);
         });
     });
